@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warlboro - Cigarette Tracker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f1318;--card:#181d25;--fg:#e8e0d0;--muted:#6b7280;--border:#252b35;--secondary:#1e2530;--destructive:#dc2626;--radius:0.75rem}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;display:flex;justify-content:center;padding:2rem 1rem}
+.app{width:100%;max-width:28rem;display:flex;flex-direction:column;gap:1.5rem}
+.mono{font-family:'JetBrains Mono',monospace}
+.label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
+input{background:var(--secondary);border:1px solid var(--border);border-radius:calc(var(--radius) - 4px);padding:0.5rem 0.75rem;color:var(--fg);font-family:'JetBrains Mono',monospace;font-size:14px;width:100%;outline:none}
+input::placeholder{color:var(--muted)}
+input:focus{border-color:#666}
+button{cursor:pointer;border:none;background:none;color:inherit}
+.header{display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:1.5rem;font-weight:700}
+.gear-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--muted);transition:color .2s}
+.gear-btn:hover{color:var(--fg)}
+.settings{display:none;flex-direction:column;gap:0.75rem}
+.settings.open{display:flex}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem}
+.color-row{display:flex;gap:0.5rem;margin-top:0.5rem}
+.color-dot{width:32px;height:32px;border-radius:50%;border:2px solid transparent;transition:all .2s}
+.color-dot.active{border-color:var(--fg);transform:scale(1.15)}
+.limit-bar-bg{width:100%;height:8px;background:var(--secondary);border-radius:99px;overflow:hidden}
+.limit-bar{height:100%;border-radius:99px;transition:width .4s ease}
+.timer-card{text-align:center;padding:1.5rem 1rem}
+.timer-value{font-size:2.25rem;font-weight:700;letter-spacing:0.15em}
+.log-btn{width:100%;padding:1.25rem;border-radius:var(--radius);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.1rem;color:#fff;display:flex;align-items:center;justify-content:center;gap:0.75rem;transition:filter .2s}
+.log-btn:hover{filter:brightness(1.15)}
+.log-btn:active{transform:scale(0.97)}
+.stat-card{text-align:center;padding:1rem}
+.stat-value{font-size:1.75rem;font-weight:700;margin-top:0.25rem}
+.stat-sm .stat-value{font-size:1.1rem}
+.log-entry{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:calc(var(--radius) - 4px)}
+.log-entry+.log-entry{margin-top:0.5rem}
+.log-list{max-height:16rem;overflow-y:auto}
+.del-btn{color:var(--muted);transition:color .2s;display:flex;align-items:center}
+.del-btn:hover{color:var(--destructive)}
+.limit-section{display:none}
+.limit-section.show{display:block}
+.limit-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem}
+.toast{position:fixed;top:1rem;right:1rem;left:1rem;max-width:24rem;margin:0 auto;padding:1rem 1.25rem;border-radius:var(--radius);font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:#fff;z-index:999;opacity:0;transform:translateY(-20px);transition:all .3s ease;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.toast.warn{background:#b45309}
+.toast.danger{background:var(--destructive)}
+.empty-msg{text-align:center;color:var(--muted);font-size:0.875rem;padding:1rem 0}
+@keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 12px rgba(255,255,255,0.15))}50%{filter:drop-shadow(0 0 20px rgba(255,255,255,0.3))}}
+.log-btn{animation:pulse-glow 2s ease-in-out infinite}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <h1 class="mono">Warlboro</h1>
+      <p id="brandDisplay" class="label" style="font-size:13px;margin-top:2px"></p>
+    </div>
+    <button class="gear-btn" onclick="toggleSettings()" title="Settings">⚙</button>
+  </div>
+
+  <div id="settingsPanel" class="card settings">
+    <div class="label" style="font-weight:600">Settings</div>
+    <div>
+      <div class="label">Brand Name</div>
+      <input id="brandInput" placeholder="e.g. Marlboro Gold" oninput="saveSettings()" style="margin-top:4px">
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="label">Price / Pack (₱)</div>
+        <input id="priceInput" type="number" step="0.01" placeholder="250" oninput="saveSettings()" style="margin-top:4px">
+      </div>
+      <div>
+        <div class="label">Cigs / Pack</div>
+        <input id="packInput" type="number" placeholder="20" oninput="saveSettings()" style="margin-top:4px">
+      </div>
+    </div>
+    <div>
+      <div class="label">Daily Limit</div>
+      <input id="limitInput" type="number" placeholder="10" oninput="saveSettings()" style="margin-top:4px">
+    </div>
+    <div>
+      <div class="label">Button Color</div>
+      <div class="color-row" id="colorRow"></div>
+    </div>
+  </div>
+
+  <div id="limitSection" class="card limit-section">
+    <div class="limit-header">
+      <span class="label mono">Daily Limit</span>
+      <span id="limitCount" class="mono" style="font-size:14px;font-weight:700"></span>
+    </div>
+    <div class="limit-bar-bg"><div id="limitBar" class="limit-bar"></div></div>
+  </div>
+
+  <div class="card timer-card">
+    <div class="label mono" style="margin-bottom:8px">⏱ Time since last cigarette</div>
+    <div id="timer" class="mono timer-value">--:--:--</div>
+  </div>
+
+  <button id="logBtn" class="log-btn" onclick="logCigarette()">🔥 Log a Cigarette</button>
+
+  <div class="grid2">
+    <div class="card stat-card">
+      <div class="label mono">🚬 Last 24h</div>
+      <div id="count24h" class="mono stat-value">0</div>
+    </div>
+    <div class="card stat-card">
+      <div class="label mono">Cost 24h</div>
+      <div id="cost24h" class="mono stat-value">₱0.00</div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="card stat-card stat-sm">
+      <div class="label mono">Weekly</div>
+      <div id="cost7d" class="mono stat-value">₱0.00</div>
+    </div>
+    <div class="card stat-card stat-sm">
+      <div class="label mono">Monthly</div>
+      <div id="cost30d" class="mono stat-value">₱0.00</div>
+    </div>
+    <div class="card stat-card stat-sm">
+      <div class="label mono">All Time</div>
+      <div id="costAll" class="mono stat-value">₱0.00</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="label mono" style="font-weight:600;margin-bottom:0.75rem">Today's Log</div>
+    <div id="logList" class="log-list"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast mono"></div>
+
+<script>
+const COLORS=[
+  {name:"Marlboro Red",h:"hsl(0,72%,40%)"},
+  {name:"Ember Orange",h:"hsl(25,95%,53%)"},
+  {name:"Menthol Green",h:"hsl(152,60%,36%)"},
+  {name:"Lucky Blue",h:"hsl(220,70%,45%)"},
+  {name:"Camel Gold",h:"hsl(40,80%,45%)"}
+];
+const MS24=864e5,MS7=6048e5,MS30=2592e6;
+let entries=JSON.parse(localStorage.getItem("smoke-entries")||"[]");
+let settings=Object.assign({brand:"",pricePerPack:0,cigsPerPack:20,dailyLimit:10,buttonColor:0},JSON.parse(localStorage.getItem("smoke-settings-v2")||"{}"));
+
+function save(){localStorage.setItem("smoke-entries",JSON.stringify(entries));localStorage.setItem("smoke-settings-v2",JSON.stringify(settings))}
+function toggleSettings(){document.getElementById("settingsPanel").classList.toggle("open")}
+
+function initColors(){
+  const row=document.getElementById("colorRow");
+  row.innerHTML="";
+  COLORS.forEach((c,i)=>{
+    const d=document.createElement("button");
+    d.className="color-dot"+(settings.buttonColor===i?" active":"");
+    d.style.backgroundColor=c.h;
+    d.title=c.name;
+    d.onclick=()=>{settings.buttonColor=i;save();initColors();updateBtn()};
+    row.appendChild(d);
+  });
+}
+function updateBtn(){document.getElementById("logBtn").style.backgroundColor=COLORS[settings.buttonColor].h}
+
+function saveSettings(){
+  settings.brand=document.getElementById("brandInput").value;
+  settings.pricePerPack=parseFloat(document.getElementById("priceInput").value)||0;
+  settings.cigsPerPack=parseInt(document.getElementById("packInput").value)||20;
+  settings.dailyLimit=parseInt(document.getElementById("limitInput").value)||0;
+  save();render();
+}
+
+function showToast(msg,type){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.className="toast mono "+type+" show";
+  setTimeout(()=>t.classList.remove("show"),3500);
+}
+
+function logCigarette(){
+  const now=Date.now();
+  const c24=entries.filter(e=>now-e.t<MS24).length+1;
+  if(settings.dailyLimit>0&&c24>=settings.dailyLimit)showToast("⚠️ Daily limit of "+settings.dailyLimit+" reached!","danger");
+  else if(settings.dailyLimit>0&&c24===settings.dailyLimit-1)showToast("🚬 1 cigarette left before your limit","warn");
+  entries.unshift({id:crypto.randomUUID(),t:now});
+  save();render();
+}
+
+function removeEntry(id){entries=entries.filter(e=>e.id!==id);save();render()}
+
+function pad(n){return String(n).padStart(2,"0")}
+function fmtTimer(ms){const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60);return pad(h)+":"+pad(m)+":"+pad(s%60)}
+function fmtTime(ts){return new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+
+function render(){
+  const now=Date.now();
+  const e24=entries.filter(e=>now-e.t<MS24);
+  const e7=entries.filter(e=>now-e.t<MS7);
+  const e30=entries.filter(e=>now-e.t<MS30);
+  const cpc=settings.pricePerPack>0&&settings.cigsPerPack>0?settings.pricePerPack/settings.cigsPerPack:0;
+
+  document.getElementById("brandDisplay").textContent=settings.brand;
+  document.getElementById("count24h").textContent=e24.length;
+  document.getElementById("cost24h").textContent="₱"+(e24.length*cpc).toFixed(2);
+  document.getElementById("cost7d").textContent="₱"+(e7.length*cpc).toFixed(2);
+  document.getElementById("cost30d").textContent="₱"+(e30.length*cpc).toFixed(2);
+  document.getElementById("costAll").textContent="₱"+(entries.length*cpc).toFixed(2);
+
+  const ls=document.getElementById("limitSection");
+  if(settings.dailyLimit>0){
+    ls.classList.add("show");
+    const pct=Math.min(e24.length/settings.dailyLimit,1);
+    document.getElementById("limitCount").textContent=e24.length+" / "+settings.dailyLimit;
+    const bar=document.getElementById("limitBar");
+    bar.style.width=(pct*100)+"%";
+    bar.style.backgroundColor=pct>=1?"var(--destructive)":COLORS[settings.buttonColor].h;
+  }else ls.classList.remove("show");
+
+  const list=document.getElementById("logList");
+  if(e24.length===0){list.innerHTML='<div class="empty-msg mono">No cigarettes logged yet.</div>';return}
+  list.innerHTML=e24.map((e,i)=>`<div class="log-entry"><div style="display:flex;align-items:center;gap:12px"><span class="mono label" style="width:24px">#${e24.length-i}</span><span class="mono" style="font-size:14px">${fmtTime(e.t)}</span></div><button class="del-btn" onclick="removeEntry('${e.id}')">✕</button></div>`).join("");
+}
+
+function tick(){
+  if(entries.length>0){
+    const latest=Math.max(...entries.map(e=>e.t));
+    document.getElementById("timer").textContent=fmtTimer(Date.now()-latest);
+  }
+}
+
+// Init
+document.getElementById("brandInput").value=settings.brand;
+document.getElementById("priceInput").value=settings.pricePerPack||"";
+document.getElementById("packInput").value=settings.cigsPerPack||"";
+document.getElementById("limitInput").value=settings.dailyLimit||"";
+initColors();updateBtn();render();
+setInterval(tick,1000);setInterval(render,60000);tick();
+</script>
+</body>
+</html>
